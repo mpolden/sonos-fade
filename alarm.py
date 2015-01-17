@@ -3,7 +3,7 @@
 """Sonos alarm
 
 Usage:
-  alarm.py [-s <volume>] [-m <volume>] [-d <seconds>] [-q] <ip> <uri>
+  alarm.py [-s <volume>] [-m <volume>] [-d <seconds>] [-n] <ip> <uri>
   alarm.py -h
 
 Arguments:
@@ -15,7 +15,7 @@ Options:
   -s --start-volume=<volume>  Volume level to start playing at [default: 10]
   -m --max-volume=<volume>    Maximum volume level [default: 50]
   -d --duration=<seconds>     Duration of volume adjustment [default: 120]
-  -q --quiet                  No output
+  -n --dry-run                Don't do anything, only show what would be done
 """
 
 import soco
@@ -26,18 +26,12 @@ from docopt import docopt
 
 class Alarm(object):
 
-    def __init__(self, start_volume, max_volume, duration, uri, speaker,
-                 quiet):
+    def __init__(self, start_volume, max_volume, duration, uri, speaker):
         self.start_volume = start_volume
         self.max_volume = max_volume
         self.duration = duration
         self.uri = uri
         self.speaker = speaker
-        self.quiet = quiet
-
-    def _log(self, s):
-        if not self.quiet:
-            print(s)
 
     def _is_sonosapi(self):
         return self.uri.startswith('x-sonosapi-stream:')
@@ -61,20 +55,38 @@ class Alarm(object):
         if self._is_sonosapi():
             title = self.get_title()
 
-        self._log('Resetting volume to {}'.format(self.start_volume))
         self.speaker.volume = self.start_volume
-        self._log('Stopping any currently playing track')
         self.speaker.stop()
-        self._log('Playing URI {} (title: {})'.format(self.uri, title))
         self.speaker.play_uri(self.uri, title=title)
 
         interval = self.sleep_interval()
-        self._log('Sleeping {} seconds between volume adjustments'.format(
-            interval))
         for _ in range(self.volume_increase()):
             sleep(interval)
             self.speaker.volume += 1
-            self._log('Volume level set to {}'.format(self.speaker.volume))
+
+
+class FakeSpeaker(object):
+
+    def __init__(self):
+        self._volume = 0
+
+    @property
+    def volume(self):
+        return self._volume
+
+    @volume.setter
+    def volume(self, volume):
+        self._volume = volume
+        print('Volume set to {}'.format(self._volume))
+
+    def stop(self):
+        print('Stopped playback')
+
+    def play_uri(self, uri, title):
+        print('Playing uri={} title={}'.format(uri, title))
+
+    def get_favorite_radio_stations(self):
+        return {'favorites': []}
 
 
 def main():
@@ -84,10 +96,14 @@ def main():
     max_volume = int(args['--max-volume'])
     duration = int(args['--duration'])
     uri = args['<uri>']
-    speaker = soco.SoCo(args['<ip>'])
-    quiet = args['--quiet']
+    dryrun = args['--dry-run']
 
-    alarm = Alarm(start_volume, max_volume, duration, uri, speaker, quiet)
+    if dryrun:
+        speaker = FakeSpeaker()
+    else:
+        speaker = soco.SoCo(args['<ip>'])
+
+    alarm = Alarm(start_volume, max_volume, duration, uri, speaker)
     alarm.start()
 
 
