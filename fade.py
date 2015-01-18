@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
-"""Sonos alarm
+"""Play a given Sonos stream and increase volume gradually
 
 Usage:
-  alarm.py [-s <volume>] [-m <volume>] [-d <seconds>] [-n] <ip> <uri>
-  alarm.py -h
+  fade.py [-s <volume>] [-m <volume>] [-d <seconds>] [-n] <ip> <uri>
+  fade.py -h
 
 Arguments:
   <ip>   IP address of speaker
@@ -24,7 +24,7 @@ from time import sleep
 from docopt import docopt
 
 
-class Alarm(object):
+class Fade(object):
 
     def __init__(self, start_volume, max_volume, duration, uri, speaker):
         self.start_volume = start_volume
@@ -103,8 +103,7 @@ def main():
     else:
         speaker = soco.SoCo(args['<ip>'])
 
-    alarm = Alarm(start_volume, max_volume, duration, uri, speaker)
-    alarm.start()
+    Fade(start_volume, max_volume, duration, uri, speaker).start()
 
 
 if __name__ == '__main__':
